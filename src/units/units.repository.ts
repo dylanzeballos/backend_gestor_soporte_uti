@@ -5,20 +5,73 @@ import { PrismaService } from 'src/prisma.service';
 export class UnitsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: { name: string }) {
-    return this.prisma.corporation.create({ data });
+  async create(data: { name: string; isActive?: boolean }) {
+    return this.prisma.corporation.create({
+      data: {
+        name: data.name,
+        isActive: data.isActive ?? true,
+      },
+    });
   }
 
-  async findAll() {
+  async findAll(params: {
+    page: number;
+    limit: number;
+    isActive?: boolean;
+    search?: string;
+  }) {
     return this.prisma.corporation.findMany({
-      where: { isActive: true },
+      where: {
+        ...(typeof params.isActive === 'boolean' ? { isActive: params.isActive } : {}),
+        ...(params.search
+          ? {
+              name: {
+                contains: params.search,
+                mode: 'insensitive' as const,
+              },
+            }
+          : {}),
+      },
+      skip: (params.page - 1) * params.limit,
+      take: params.limit,
       orderBy: { createdAt: 'desc' },
     });
   }
 
+  async count(params: { isActive?: boolean; search?: string }) {
+    return this.prisma.corporation.count({
+      where: {
+        ...(typeof params.isActive === 'boolean' ? { isActive: params.isActive } : {}),
+        ...(params.search
+          ? {
+              name: {
+                contains: params.search,
+                mode: 'insensitive' as const,
+              },
+            }
+          : {}),
+      },
+    });
+  }
+
   async findById(id: number) {
-    return this.prisma.corporation.findUnique({
-      where: { id },
+    return this.prisma.corporation.findFirst({
+      where: {
+        id,
+        isActive: true,
+      },
+    });
+  }
+
+  async findByName(name: string) {
+    return this.prisma.corporation.findFirst({
+      where: {
+        name: {
+          equals: name,
+          mode: 'insensitive',
+        },
+        isActive: true,
+      },
     });
   }
 
@@ -26,7 +79,12 @@ export class UnitsRepository {
     return this.prisma.corporation.update({ where: { id }, data });
   }
 
-  async delete(id: number) {
-    return this.prisma.corporation.delete({ where: { id } });
+  async softDelete(id: number) {
+    return this.prisma.corporation.update({
+      where: { id },
+      data: {
+        isActive: false,
+      },
+    });
   }
 }
