@@ -126,11 +126,13 @@ export class NotificationsGateway
     ticketId: number,
     title: string,
     assignedBy: number,
+    assignedToName?: string,
   ) {
     this.emitToUser(assignedToId, 'ticket:assigned', {
       ticketId,
       title,
       assignedBy,
+      assignedToName,
       assignedAt: new Date().toISOString(),
     });
   }
@@ -158,6 +160,40 @@ export class NotificationsGateway
     await this.broadcastToRoles('ticket:created', {
       ...payload,
     }, ['admin', 'staff', 'agent'], { excludeUserIds: [createdBy] });
+  }
+
+  async emitTicketStatusChanged(
+    ticketId: number,
+    title: string,
+    oldStatus: string,
+    newStatus: string,
+    changedBy: number,
+    createdById?: number,
+  ) {
+    const payload = {
+      ticketId,
+      title,
+      oldStatus,
+      newStatus,
+      changedBy,
+      changedAt: new Date().toISOString(),
+    };
+
+    const excludedUserIds = new Set<number>([changedBy]);
+
+    this.emitToUser(changedBy, 'ticket:status_changed', payload);
+
+    if (createdById && createdById !== changedBy) {
+      this.emitToUser(createdById, 'ticket:status_changed', payload);
+      excludedUserIds.add(createdById);
+    }
+
+    await this.broadcastToRoles(
+      'ticket:status_changed',
+      payload,
+      ['admin', 'agent'],
+      { excludeUserIds: [...excludedUserIds] },
+    );
   }
 
   private extractToken(client: AuthenticatedSocket): string | null {

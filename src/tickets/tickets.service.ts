@@ -178,6 +178,15 @@ export class TicketsService {
       });
     }
 
+    await this.notificationsGateway.emitTicketStatusChanged(
+      updated.id,
+      updated.title,
+      ticket.status,
+      dto.status as TicketStatus,
+      changedById,
+      updated.createdById,
+    );
+
     return updated;
   }
 
@@ -211,6 +220,10 @@ export class TicketsService {
       updated.id,
       updated.title,
       changedById,
+      updated.assignedTo
+        ? `${updated.assignedTo.firstName ?? ''} ${updated.assignedTo.lastName ?? ''}`.trim() ||
+            updated.assignedTo.email
+        : undefined,
     );
 
     return updated;
