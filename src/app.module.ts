@@ -14,6 +14,8 @@ import { AuthModule } from './auth/auth.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { UnitsModule } from './units/units.module';
 import { ServicesModule } from './services/services.module';
+import { UnitsModule } from './units/units.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -33,6 +35,8 @@ import { ServicesModule } from './services/services.module';
     ServicesModule,
     FilesModule,
     EmailModule,
+    UnitsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

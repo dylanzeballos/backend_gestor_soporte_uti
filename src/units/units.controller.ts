@@ -11,7 +11,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CreateUnitDto } from './dto/create-unit.dto';
 import { ListUnitsQueryDto } from './dto/list-units-query.dto';
@@ -26,7 +27,10 @@ export class UnitsController {
   constructor(private readonly unitsService: UnitsService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a unit (mapped to corporations)' })
+  @Roles('admin')
+  @UseGuards(RolesGuard)
+  @ApiOperation({ summary: 'Create a new unit (admin only)' })
+  @ApiForbiddenResponse({ description: 'Access denied. Admin role required.' })
   create(@Body() createUnitDto: CreateUnitDto) {
     return this.unitsService.create(createUnitDto);
   }
@@ -48,7 +52,11 @@ export class UnitsController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Update a unit' })
+  @Roles('admin')
+  @UseGuards(RolesGuard)
+  @ApiOperation({ summary: 'Update a unit (admin only)' })
+  @ApiForbiddenResponse({ description: 'Access denied. Admin role required.' })
+  @ApiNotFoundResponse({ description: 'Unit not found' })
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUnitDto: UpdateUnitDto,
@@ -57,7 +65,11 @@ export class UnitsController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Archive unit (soft delete using isActive=false)' })
+  @Roles('admin')
+  @UseGuards(RolesGuard)
+  @ApiOperation({ summary: 'Archive a unit (soft delete, admin only)' })
+  @ApiForbiddenResponse({ description: 'Access denied. Admin role required.' })
+  @ApiNotFoundResponse({ description: 'Unit not found' })
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.unitsService.remove(id);
   }

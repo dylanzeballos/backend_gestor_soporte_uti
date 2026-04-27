@@ -50,16 +50,15 @@ export class UnitsService {
   async findOne(id: number) {
     const unit = await this.unitsRepository.findById(id);
     if (!unit) {
-      throw new NotFoundException('Unit not found');
+      throw new NotFoundException(`Unit with ID ${id} not found`);
     }
-
     return unit;
   }
 
   async update(id: number, updateUnitDto: UpdateUnitDto) {
     const currentUnit = await this.unitsRepository.findById(id);
     if (!currentUnit) {
-      throw new NotFoundException('Unit not found');
+      throw new NotFoundException(`Unit with ID ${id} not found`);
     }
 
     if (updateUnitDto.name) {
@@ -77,7 +76,7 @@ export class UnitsService {
   async remove(id: number) {
     const unit = await this.unitsRepository.findById(id);
     if (!unit) {
-      throw new NotFoundException('Unit not found');
+      throw new NotFoundException(`Unit with ID ${id} not found`);
     }
 
     await this.unitsRepository.softDelete(id);
