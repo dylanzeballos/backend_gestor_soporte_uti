@@ -26,18 +26,17 @@ export class UnitsService {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
 
-    const [data, total] = await Promise.all([
-      this.unitsRepository.findAll({
-        page,
-        limit,
-        isActive: query.isActive,
-        search: query.search,
-      }),
-      this.unitsRepository.count({
-        isActive: query.isActive,
-        search: query.search,
-      }),
-    ]);
+    const data = await this.unitsRepository.findAll({
+      page,
+      limit,
+      isActive: query.isActive,
+      search: query.search,
+    });
+
+    const total = await this.unitsRepository.count({
+      isActive: query.isActive,
+      search: query.search,
+    });
 
     return {
       page,

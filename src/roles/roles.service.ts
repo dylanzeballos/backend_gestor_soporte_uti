@@ -26,16 +26,15 @@ export class RolesService {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
 
-    const [data, total] = await Promise.all([
-      this.rolesRepository.findAll({
-        page,
-        limit,
-        search: query.search?.trim() || undefined,
-      }),
-      this.rolesRepository.count({
-        search: query.search?.trim() || undefined,
-      }),
-    ]);
+    const data = await this.rolesRepository.findAll({
+      page,
+      limit,
+      search: query.search?.trim() || undefined,
+    });
+
+    const total = await this.rolesRepository.count({
+      search: query.search?.trim() || undefined,
+    });
 
     return {
       page,

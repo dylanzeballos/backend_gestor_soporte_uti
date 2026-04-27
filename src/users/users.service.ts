@@ -37,14 +37,13 @@ export class UsersService {
   async findAll(query: ListUsersQueryDto) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
-    const [data, total] = await Promise.all([
-      this.usersRepository.findAll({
-        page,
-        limit,
-        isActive: query.isActive,
-      }),
-      this.usersRepository.countActiveUsers(query.isActive),
-    ]);
+    const data = await this.usersRepository.findAll({
+      page,
+      limit,
+      isActive: query.isActive,
+    });
+
+    const total = await this.usersRepository.countActiveUsers(query.isActive);
 
     return {
       page,
