@@ -44,6 +44,13 @@ export class ListTicketsQueryDto {
   @Min(1)
   createdById?: number;
 
+  @ApiPropertyOptional()
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  excludeCreatedById?: number;
+
   @ApiPropertyOptional({ description: 'Search by title' })
   @IsOptional()
   @IsString()

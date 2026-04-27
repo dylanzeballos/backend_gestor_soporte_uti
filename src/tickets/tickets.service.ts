@@ -72,6 +72,8 @@ export class TicketsService {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const createdById = actor.role === 'user' ? actor.userId : query.createdById;
+    const excludeCreatedById =
+      actor.role === 'user' || createdById ? undefined : query.excludeCreatedById;
 
     const [data, total] = await Promise.all([
       this.ticketsRepository.findAll({
@@ -81,6 +83,7 @@ export class TicketsService {
         priority: query.priority as TicketPriority | undefined,
         assignedToId: query.assignedToId,
         createdById,
+        excludeCreatedById,
         search: query.search,
       }),
       this.ticketsRepository.count({
@@ -88,6 +91,7 @@ export class TicketsService {
         priority: query.priority as TicketPriority | undefined,
         assignedToId: query.assignedToId,
         createdById,
+        excludeCreatedById,
         search: query.search,
       }),
     ]);

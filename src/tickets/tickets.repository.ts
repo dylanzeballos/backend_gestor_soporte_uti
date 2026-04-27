@@ -31,6 +31,7 @@ export class TicketsRepository {
     priority?: TicketPriority;
     assignedToId?: number;
     createdById?: number;
+    excludeCreatedById?: number;
     search?: string;
   }) {
     const where = {
@@ -39,6 +40,7 @@ export class TicketsRepository {
       ...(params.priority ? { priority: params.priority } : {}),
       ...(params.assignedToId ? { assignedToId: params.assignedToId } : {}),
       ...(params.createdById ? { createdById: params.createdById } : {}),
+      ...(params.excludeCreatedById ? { createdById: { not: params.excludeCreatedById } } : {}),
       ...(params.search
         ? {
             title: {
@@ -65,6 +67,7 @@ export class TicketsRepository {
     priority?: TicketPriority;
     assignedToId?: number;
     createdById?: number;
+    excludeCreatedById?: number;
     search?: string;
   }) {
     return this.prisma.ticket.count({
@@ -74,6 +77,7 @@ export class TicketsRepository {
         ...(params.priority ? { priority: params.priority } : {}),
         ...(params.assignedToId ? { assignedToId: params.assignedToId } : {}),
         ...(params.createdById ? { createdById: params.createdById } : {}),
+        ...(params.excludeCreatedById ? { createdById: { not: params.excludeCreatedById } } : {}),
         ...(params.search
           ? {
               title: {
