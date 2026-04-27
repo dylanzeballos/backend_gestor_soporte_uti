@@ -6,6 +6,7 @@ import {
 
 import { EmailService } from '../email/email.service';
 import { FilesService } from '../files/files.service';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { TicketPriority, TicketStatus } from '../generated/prisma/enums';
 import { AssignTicketDto } from './dto/assign-ticket.dto';
 import { CreateTicketDto } from './dto/create-ticket.dto';
@@ -20,6 +21,7 @@ export class TicketsService {
     private readonly ticketsRepository: TicketsRepository,
     private readonly filesService: FilesService,
     private readonly emailService: EmailService,
+    private readonly notificationsGateway: NotificationsGateway,
   ) {}
 
   async create(createTicketDto: CreateTicketDto, currentUserId: number) {
@@ -50,6 +52,14 @@ export class TicketsService {
         text: `Se te asignó el ticket ${createdTicket.title}`,
       });
     }
+
+    // WebSocket notification to admins and staff
+    this.notificationsGateway.emitTicketCreated(
+      createdTicket.id,
+      createdTicket.title,
+      createdTicket.priority,
+      currentUserId,
+    );
 
     return createdTicket;
   }
@@ -187,6 +197,14 @@ export class TicketsService {
         text: `Se te asignó el ticket '${updated.title}'.`,
       });
     }
+
+    // WebSocket notification to assigned user
+    this.notificationsGateway.emitTicketAssigned(
+      dto.assignedToId,
+      updated.id,
+      updated.title,
+      changedById,
+    );
 
     return updated;
   }
