@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
@@ -8,6 +9,7 @@ import { EmailService } from '../email/email.service';
 import { FilesService } from '../files/files.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { TicketPriority, TicketStatus } from '../generated/prisma/enums';
+import { UsersService } from '../users/users.service';
 import { AssignTicketDto } from './dto/assign-ticket.dto';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { ListTicketsQueryDto } from './dto/list-tickets-query.dto';
@@ -22,6 +24,7 @@ export class TicketsService {
     private readonly filesService: FilesService,
     private readonly emailService: EmailService,
     private readonly notificationsGateway: NotificationsGateway,
+    private readonly usersService: UsersService,
   ) {}
 
   async create(createTicketDto: CreateTicketDto, currentUserId: number) {
@@ -64,9 +67,11 @@ export class TicketsService {
     return createdTicket;
   }
 
-  async findAll(query: ListTicketsQueryDto) {
+  async findAll(query: ListTicketsQueryDto, currentUserId: number) {
+    const actor = await this.getActorContext(currentUserId);
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
+    const createdById = actor.role === 'user' ? actor.userId : query.createdById;
 
     const [data, total] = await Promise.all([
       this.ticketsRepository.findAll({
@@ -75,14 +80,14 @@ export class TicketsService {
         status: query.status as TicketStatus | undefined,
         priority: query.priority as TicketPriority | undefined,
         assignedToId: query.assignedToId,
-        createdById: query.createdById,
+        createdById,
         search: query.search,
       }),
       this.ticketsRepository.count({
         status: query.status as TicketStatus | undefined,
         priority: query.priority as TicketPriority | undefined,
         assignedToId: query.assignedToId,
-        createdById: query.createdById,
+        createdById,
         search: query.search,
       }),
     ]);
@@ -95,20 +100,23 @@ export class TicketsService {
     };
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, currentUserId: number) {
     const ticket = await this.ticketsRepository.findById(id);
     if (!ticket) {
+      throw new NotFoundException('Ticket not found');
+    }
+
+    const actor = await this.getActorContext(currentUserId);
+    if (actor.role === 'user' && ticket.createdById !== actor.userId) {
       throw new NotFoundException('Ticket not found');
     }
 
     return ticket;
   }
 
-  async update(id: number, dto: UpdateTicketDto) {
-    const ticket = await this.ticketsRepository.findById(id);
-    if (!ticket) {
-      throw new NotFoundException('Ticket not found');
-    }
+  async update(id: number, dto: UpdateTicketDto, currentUserId: number) {
+    await this.assertStaffAccess(currentUserId);
+    const ticket = await this.findOne(id, currentUserId);
 
     return this.ticketsRepository.update(id, {
       title: dto.title,
@@ -142,10 +150,8 @@ export class TicketsService {
     dto: UpdateTicketStatusDto,
     changedById: number,
   ) {
-    const ticket = await this.ticketsRepository.findById(id);
-    if (!ticket) {
-      throw new NotFoundException('Ticket not found');
-    }
+    await this.assertStaffAccess(changedById);
+    const ticket = await this.findOne(id, changedById);
 
     const updated = await this.ticketsRepository.update(id, {
       status: dto.status as TicketStatus,
@@ -173,10 +179,8 @@ export class TicketsService {
   }
 
   async assign(id: number, dto: AssignTicketDto, changedById: number) {
-    const ticket = await this.ticketsRepository.findById(id);
-    if (!ticket) {
-      throw new NotFoundException('Ticket not found');
-    }
+    await this.assertStaffAccess(changedById);
+    const ticket = await this.findOne(id, changedById);
 
     const updated = await this.ticketsRepository.update(id, {
       assignedToId: dto.assignedToId,
@@ -209,11 +213,9 @@ export class TicketsService {
     return updated;
   }
 
-  async remove(id: number) {
-    const ticket = await this.ticketsRepository.findById(id);
-    if (!ticket) {
-      throw new NotFoundException('Ticket not found');
-    }
+  async remove(id: number, currentUserId: number) {
+    await this.assertStaffAccess(currentUserId);
+    await this.findOne(id, currentUserId);
 
     await this.ticketsRepository.softDelete(id);
 
@@ -231,7 +233,7 @@ export class TicketsService {
       throw new UnprocessableEntityException('File is required');
     }
 
-    const ticket = await this.findOne(ticketId);
+    const ticket = await this.findOne(ticketId, changedById);
 
     await this.ticketsRepository.createHistory({
       ticketId,
@@ -250,7 +252,57 @@ export class TicketsService {
     };
   }
 
-  getAttachmentPath(ticketId: number, filename: string) {
+  async getAttachmentPath(
+    ticketId: number,
+    filename: string,
+    currentUserId: number,
+  ) {
+    await this.findOne(ticketId, currentUserId);
     return this.filesService.resolveAttachmentAbsolutePath(ticketId, filename);
+  }
+
+  private async getActorContext(userId: number) {
+    const currentUser = await this.usersService.findOne(userId);
+    const role = this.resolveRoleName(
+      (currentUser as { role?: string | { name?: string | null } | null }).role,
+    );
+
+    return {
+      userId: currentUser.id,
+      role,
+    };
+  }
+
+  private async assertStaffAccess(userId: number) {
+    const actor = await this.getActorContext(userId);
+    if (actor.role === 'user') {
+      throw new ForbiddenException('No tienes permisos para gestionar tickets');
+    }
+  }
+
+  private resolveRoleName(role: string | { name?: string | null } | null | undefined) {
+    if (typeof role === 'string') {
+      const normalizedRole = role.trim().toLowerCase();
+      if (
+        normalizedRole === 'admin' ||
+        normalizedRole === 'agent' ||
+        normalizedRole === 'user'
+      ) {
+        return normalizedRole;
+      }
+    }
+
+    if (role && typeof role === 'object') {
+      const normalizedRole = role.name?.trim().toLowerCase();
+      if (
+        normalizedRole === 'admin' ||
+        normalizedRole === 'agent' ||
+        normalizedRole === 'user'
+      ) {
+        return normalizedRole;
+      }
+    }
+
+    return 'user' as const;
   }
 }

@@ -60,14 +60,20 @@ export class TicketsController {
   @ApiQuery({ name: 'assignedToId', required: false, type: Number })
   @ApiQuery({ name: 'createdById', required: false, type: Number })
   @ApiQuery({ name: 'search', required: false, type: String })
-  findAll(@Query() query: ListTicketsQueryDto) {
-    return this.ticketsService.findAll(query);
+  findAll(
+    @Query() query: ListTicketsQueryDto,
+    @CurrentUser('sub') currentUserId: number,
+  ) {
+    return this.ticketsService.findAll(query, currentUserId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get ticket by id' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.ticketsService.findOne(id);
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser('sub') currentUserId: number,
+  ) {
+    return this.ticketsService.findOne(id, currentUserId);
   }
 
   @Patch(':id')
@@ -75,8 +81,9 @@ export class TicketsController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateTicketDto,
+    @CurrentUser('sub') currentUserId: number,
   ) {
-    return this.ticketsService.update(id, dto);
+    return this.ticketsService.update(id, dto, currentUserId);
   }
 
   @Patch(':id/status')
@@ -129,15 +136,23 @@ export class TicketsController {
   async downloadAttachment(
     @Param('id', ParseIntPipe) id: number,
     @Param('filename') filename: string,
+    @CurrentUser('sub') currentUserId: number,
     @Res() response: Response,
   ) {
-    const path = this.ticketsService.getAttachmentPath(id, filename);
+    const path = await this.ticketsService.getAttachmentPath(
+      id,
+      filename,
+      currentUserId,
+    );
     return response.download(path, filename);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Archive ticket (soft delete)' })
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.ticketsService.remove(id);
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser('sub') currentUserId: number,
+  ) {
+    return this.ticketsService.remove(id, currentUserId);
   }
 }
