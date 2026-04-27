@@ -1,5 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+
 import { CreateUnitDto } from './dto/create-unit.dto';
+import { ListUnitsQueryDto } from './dto/list-units-query.dto';
 import { UpdateUnitDto } from './dto/update-unit.dto';
 import { UnitsRepository } from './units.repository';
 
@@ -8,11 +10,41 @@ export class UnitsService {
   constructor(private readonly unitsRepository: UnitsRepository) {}
 
   async create(createUnitDto: CreateUnitDto) {
-    return this.unitsRepository.create(createUnitDto);
+    const normalizedName = createUnitDto.name.trim();
+    const existingUnit = await this.unitsRepository.findByName(normalizedName);
+    if (existingUnit) {
+      throw new ConflictException('Unit name already exists');
+    }
+
+    return this.unitsRepository.create({
+      name: normalizedName,
+      isActive: createUnitDto.isActive ?? true,
+    });
   }
 
-  async findAll() {
-    return this.unitsRepository.findAll();
+  async findAll(query: ListUnitsQueryDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+
+    const [data, total] = await Promise.all([
+      this.unitsRepository.findAll({
+        page,
+        limit,
+        isActive: query.isActive,
+        search: query.search,
+      }),
+      this.unitsRepository.count({
+        isActive: query.isActive,
+        search: query.search,
+      }),
+    ]);
+
+    return {
+      page,
+      limit,
+      total,
+      data,
+    };
   }
 
   async findOne(id: number) {
@@ -24,10 +56,20 @@ export class UnitsService {
   }
 
   async update(id: number, updateUnitDto: UpdateUnitDto) {
-    const unit = await this.unitsRepository.findById(id);
-    if (!unit) {
+    const currentUnit = await this.unitsRepository.findById(id);
+    if (!currentUnit) {
       throw new NotFoundException(`Unit with ID ${id} not found`);
     }
+
+    if (updateUnitDto.name) {
+      const normalizedName = updateUnitDto.name.trim();
+      const existingUnit = await this.unitsRepository.findByName(normalizedName);
+      if (existingUnit && existingUnit.id !== id) {
+        throw new ConflictException('Unit name already exists');
+      }
+      updateUnitDto.name = normalizedName;
+    }
+
     return this.unitsRepository.update(id, updateUnitDto);
   }
 
@@ -36,6 +78,11 @@ export class UnitsService {
     if (!unit) {
       throw new NotFoundException(`Unit with ID ${id} not found`);
     }
-    return this.unitsRepository.update(id, { isActive: false });
+
+    await this.unitsRepository.softDelete(id);
+
+    return {
+      message: `Unit ${id} archived successfully`,
+    };
   }
 }

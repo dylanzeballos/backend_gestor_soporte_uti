@@ -12,6 +12,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { TicketsModule } from './tickets/tickets.module';
+import { UnitsModule } from './units/units.module';
 import { ServicesModule } from './services/services.module';
 import { UnitsModule } from './units/units.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -30,6 +31,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     UsersModule,
     AuthModule,
     TicketsModule,
+    UnitsModule,
     ServicesModule,
     FilesModule,
     EmailModule,

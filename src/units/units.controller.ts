@@ -1,28 +1,23 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
-  UseGuards,
+  Get,
+  Param,
   ParseIntPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiBearerAuth,
-  ApiOperation,
-  ApiForbiddenResponse,
-  ApiNotFoundResponse,
-} from '@nestjs/swagger';
-
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { UnitsService } from './units.service';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CreateUnitDto } from './dto/create-unit.dto';
+import { ListUnitsQueryDto } from './dto/list-units-query.dto';
 import { UpdateUnitDto } from './dto/update-unit.dto';
+import { UnitsService } from './units.service';
 
 @ApiTags('Units')
 @ApiBearerAuth()
@@ -41,14 +36,17 @@ export class UnitsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List all active units' })
-  findAll() {
-    return this.unitsService.findAll();
+  @ApiOperation({ summary: 'List units with optional pagination and filters' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'isActive', required: false, type: Boolean })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  findAll(@Query() query: ListUnitsQueryDto) {
+    return this.unitsService.findAll(query);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get a unit by ID' })
-  @ApiNotFoundResponse({ description: 'Unit not found' })
+  @ApiOperation({ summary: 'Get one unit by id' })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.unitsService.findOne(id);
   }
