@@ -15,6 +15,7 @@ import { TicketsModule } from './tickets/tickets.module';
 import { UnitsModule } from './units/units.module';
 import { ServicesModule } from './services/services.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { RolesModule } from './roles/roles.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     FilesModule,
     EmailModule,
     NotificationsModule,
+    RolesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
