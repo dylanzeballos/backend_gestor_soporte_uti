@@ -28,7 +28,7 @@ export class NotificationsGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
   constructor(
     private readonly notificationsService: NotificationsService,
@@ -101,10 +101,19 @@ export class NotificationsGateway
   /**
    * Emit an event to all users with specified roles
    */
-  async broadcastToRoles(event: string, data: unknown, roleNames: string[]) {
+  async broadcastToRoles(
+    event: string,
+    data: unknown,
+    roleNames: string[],
+    options?: { excludeUserIds?: number[] },
+  ) {
+    const excluded = new Set(options?.excludeUserIds ?? []);
     const users = await this.notificationsService.findUsersByRoles(roleNames);
 
     for (const user of users) {
+      if (excluded.has(user.id)) {
+        continue;
+      }
       this.server.to(`user:${user.id}`).emit(event, data);
     }
   }
@@ -135,20 +144,33 @@ export class NotificationsGateway
     priority: string,
     createdBy: number,
   ) {
-    await this.broadcastToRoles('ticket:created', {
+    const payload = {
       ticketId,
       title,
       priority,
       createdBy,
       createdAt: new Date().toISOString(),
-    }, ['admin', 'staff']);
+    };
+
+    // Ensure the creator receives the event immediately.
+    this.emitToUser(createdBy, 'ticket:created', payload);
+
+    await this.broadcastToRoles('ticket:created', {
+      ...payload,
+    }, ['admin', 'staff', 'agent'], { excludeUserIds: [createdBy] });
   }
 
   private extractToken(client: AuthenticatedSocket): string | null {
     // Try auth token first (preferred for socket.io)
     const authToken = client.handshake.auth?.token;
-    if (authToken) {
+    if (typeof authToken === 'string' && authToken.length > 0) {
       return authToken;
+    }
+
+    // Fallback to query param for compatibility with ws-style clients.
+    const queryToken = client.handshake.query?.token;
+    if (typeof queryToken === 'string' && queryToken.length > 0) {
+      return queryToken;
     }
 
     // Fallback to Authorization header
