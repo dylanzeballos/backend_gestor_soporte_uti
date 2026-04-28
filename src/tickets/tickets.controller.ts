@@ -60,6 +60,7 @@ export class TicketsController {
   @ApiQuery({ name: 'assignedToId', required: false, type: Number })
   @ApiQuery({ name: 'createdById', required: false, type: Number })
   @ApiQuery({ name: 'excludeCreatedById', required: false, type: Number })
+  @ApiQuery({ name: 'unassigned', required: false, type: Boolean })
   @ApiQuery({ name: 'search', required: false, type: String })
   findAll(
     @Query() query: ListTicketsQueryDto,

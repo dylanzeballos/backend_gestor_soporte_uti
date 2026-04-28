@@ -81,6 +81,7 @@ export class TicketsService {
       status: query.status as TicketStatus | undefined,
       priority: query.priority as TicketPriority | undefined,
       assignedToId: query.assignedToId,
+      unassigned: query.unassigned,
       createdById,
       excludeCreatedById,
       search: query.search,
@@ -90,6 +91,7 @@ export class TicketsService {
       status: query.status as TicketStatus | undefined,
       priority: query.priority as TicketPriority | undefined,
       assignedToId: query.assignedToId,
+      unassigned: query.unassigned,
       createdById,
       excludeCreatedById,
       search: query.search,
@@ -299,22 +301,22 @@ export class TicketsService {
   private resolveRoleName(role: string | { name?: string | null } | null | undefined) {
     if (typeof role === 'string') {
       const normalizedRole = role.trim().toLowerCase();
-      if (
-        normalizedRole === 'admin' ||
-        normalizedRole === 'agent' ||
-        normalizedRole === 'user'
-      ) {
+      if (normalizedRole === 'tecnico') {
+        return 'agent' as const;
+      }
+
+      if (normalizedRole === 'admin' || normalizedRole === 'agent' || normalizedRole === 'user') {
         return normalizedRole;
       }
     }
 
     if (role && typeof role === 'object') {
       const normalizedRole = role.name?.trim().toLowerCase();
-      if (
-        normalizedRole === 'admin' ||
-        normalizedRole === 'agent' ||
-        normalizedRole === 'user'
-      ) {
+      if (normalizedRole === 'tecnico') {
+        return 'agent' as const;
+      }
+
+      if (normalizedRole === 'admin' || normalizedRole === 'agent' || normalizedRole === 'user') {
         return normalizedRole;
       }
     }

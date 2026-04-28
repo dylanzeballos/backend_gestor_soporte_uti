@@ -30,6 +30,7 @@ export class TicketsRepository {
     status?: TicketStatus;
     priority?: TicketPriority;
     assignedToId?: number;
+    unassigned?: boolean;
     createdById?: number;
     excludeCreatedById?: number;
     search?: string;
@@ -38,7 +39,11 @@ export class TicketsRepository {
       deletedAt: null,
       ...(params.status ? { status: params.status } : {}),
       ...(params.priority ? { priority: params.priority } : {}),
-      ...(params.assignedToId ? { assignedToId: params.assignedToId } : {}),
+      ...(params.unassigned
+        ? { assignedToId: null }
+        : typeof params.assignedToId === 'number'
+          ? { assignedToId: params.assignedToId }
+          : {}),
       ...(params.createdById ? { createdById: params.createdById } : {}),
       ...(params.excludeCreatedById ? { createdById: { not: params.excludeCreatedById } } : {}),
       ...(params.search
@@ -66,6 +71,7 @@ export class TicketsRepository {
     status?: TicketStatus;
     priority?: TicketPriority;
     assignedToId?: number;
+    unassigned?: boolean;
     createdById?: number;
     excludeCreatedById?: number;
     search?: string;
@@ -75,7 +81,11 @@ export class TicketsRepository {
         deletedAt: null,
         ...(params.status ? { status: params.status } : {}),
         ...(params.priority ? { priority: params.priority } : {}),
-        ...(params.assignedToId ? { assignedToId: params.assignedToId } : {}),
+        ...(params.unassigned
+          ? { assignedToId: null }
+          : typeof params.assignedToId === 'number'
+            ? { assignedToId: params.assignedToId }
+            : {}),
         ...(params.createdById ? { createdById: params.createdById } : {}),
         ...(params.excludeCreatedById ? { createdById: { not: params.excludeCreatedById } } : {}),
         ...(params.search
