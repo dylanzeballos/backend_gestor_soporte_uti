@@ -16,6 +16,8 @@ import { UnitsModule } from './units/units.module';
 import { ServicesModule } from './services/services.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { RolesModule } from './roles/roles.module';
+import { ComponentsModule } from './components/components.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -37,6 +39,8 @@ import { RolesModule } from './roles/roles.module';
     EmailModule,
     NotificationsModule,
     RolesModule,
+    ComponentsModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
