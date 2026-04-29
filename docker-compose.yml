@@ -1,29 +1,19 @@
-version: '3.9'
-
 services:
-  api:
-    build: .
-    container_name: gestor-soporte-api
+  backend_gestor_soporte_uti:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: backend_gestor_soporte_uti
     restart: unless-stopped
-    env_file:
-      - .env
     ports:
-      - '3000:3000'
-    volumes:
-      - ./media:/app/media
-
-  postgres:
-    image: postgres:16-alpine
-    container_name: gestor-soporte-db
-    restart: unless-stopped
+      - "7001:7001"
     environment:
-      POSTGRES_DB: soporte
-      POSTGRES_USER: soporte
-      POSTGRES_PASSWORD: soporte
-    ports:
-      - '5432:5432'
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      NODE_ENV: production
+      PORT: 7001
+      DATABASE_URL: "postgresql://uti.fce:071.f03@dbpg:5432/ticketuti?schema=public"
+    networks:
+      - dbpg_dbpg
 
-volumes:
-  postgres_data:
+networks:
+  dbpg_dbpg:
+    external: true
