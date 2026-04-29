@@ -16,6 +16,7 @@ RUN npm install --frozen-lockfile
 COPY . .
 
 ENV DATABASE_URL=${DATABASE_URL}
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 
 # ✅ Generar cliente Prisma
 RUN npx prisma generate --no-engine
