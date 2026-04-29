@@ -33,10 +33,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
         : (exceptionResponse as { message?: string | string[] }).message ??
           'Internal server error';
 
-    this.logger.error(
-      `${request.method} ${request.url} -> ${status}`,
-      exception instanceof Error ? exception.stack : undefined,
-    );
+    const logMessage = `${request.method} ${request.url} -> ${status}`;
+
+    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      this.logger.error(
+        logMessage,
+        exception instanceof Error ? exception.stack : undefined,
+      );
+    } else if (status === HttpStatus.UNAUTHORIZED || status === HttpStatus.FORBIDDEN) {
+      this.logger.warn(logMessage);
+    } else {
+      this.logger.log(logMessage);
+    }
 
     response.status(status).json({
       timestamp: new Date().toISOString(),

@@ -65,4 +65,14 @@ export class ListTicketsQueryDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiPropertyOptional({ description: 'Include total count in response', default: true })
+  @Transform(({ value }) => {
+    if (value === true || value === 'true') return true;
+    if (value === false || value === 'false') return false;
+    return undefined;
+  })
+  @IsOptional()
+  @IsBoolean()
+  includeTotal?: boolean;
 }

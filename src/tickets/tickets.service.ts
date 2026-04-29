@@ -71,6 +71,7 @@ export class TicketsService {
     const actor = await this.getActorContext(currentUserId);
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
+    const includeTotal = query.includeTotal !== false;
     const createdById = actor.role === 'user' ? actor.userId : query.createdById;
     const excludeCreatedById =
       actor.role === 'user' || createdById ? undefined : query.excludeCreatedById;
@@ -87,15 +88,17 @@ export class TicketsService {
       search: query.search,
     });
 
-    const total = await this.ticketsRepository.count({
-      status: query.status as TicketStatus | undefined,
-      priority: query.priority as TicketPriority | undefined,
-      assignedToId: query.assignedToId,
-      unassigned: query.unassigned,
-      createdById,
-      excludeCreatedById,
-      search: query.search,
-    });
+    const total = includeTotal
+      ? await this.ticketsRepository.count({
+          status: query.status as TicketStatus | undefined,
+          priority: query.priority as TicketPriority | undefined,
+          assignedToId: query.assignedToId,
+          unassigned: query.unassigned,
+          createdById,
+          excludeCreatedById,
+          search: query.search,
+        })
+      : data.length;
 
     return {
       page,

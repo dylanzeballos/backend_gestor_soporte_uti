@@ -48,7 +48,7 @@ export class ReportsRepository {
         id,
         deletedAt: null,
       },
-      include: this.defaultInclude,
+      include: this.detailInclude,
     });
   }
 
@@ -92,7 +92,7 @@ export class ReportsRepository {
           })),
         },
       },
-      include: this.defaultInclude,
+      include: this.detailInclude,
     });
   }
 
@@ -136,7 +136,7 @@ export class ReportsRepository {
             }
           : {}),
       },
-      include: this.defaultInclude,
+      include: this.summaryInclude,
       skip: (params.page - 1) * params.limit,
       take: params.limit,
       orderBy: {
@@ -220,7 +220,7 @@ export class ReportsRepository {
             }
           : {}),
       },
-      include: this.defaultInclude,
+      include: this.detailInclude,
     });
   }
 
@@ -365,13 +365,98 @@ export class ReportsRepository {
     });
   }
 
-  private readonly defaultInclude = {
+  private readonly summaryInclude = {
     ticket: {
       select: {
         id: true,
         title: true,
         status: true,
         priority: true,
+        assignedTo: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        service: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    },
+    createdBy: {
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+      },
+    },
+    components: {
+      include: {
+        component: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        id: 'asc' as const,
+      },
+    },
+  };
+
+  private readonly detailInclude = {
+    ticket: {
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        status: true,
+        priority: true,
+        createdAt: true,
+        updatedAt: true,
+        resolvedAt: true,
+        createdById: true,
+        assignedToId: true,
+        emitterId: true,
+        serviceId: true,
+        slaMinutes: true,
+        createdBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        assignedTo: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        emitter: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        service: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     },
     createdBy: {

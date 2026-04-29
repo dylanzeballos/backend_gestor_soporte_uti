@@ -47,6 +47,7 @@ export class ReportsService {
   async findAll(query: ListReportsQueryDto) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
+    const includeTotal = query.includeTotal !== false;
     const fromDate = this.parseDate(query.fromDate);
     const toDate = this.parseDate(query.toDate);
     this.assertDateRange(fromDate, toDate);
@@ -62,14 +63,16 @@ export class ReportsService {
       toDate: toDate ?? undefined,
     });
 
-    const total = await this.reportsRepository.count({
-      ticketId: query.ticketId,
-      createdById: query.createdById,
-      componentId: query.componentId,
-      ticketStatus: query.ticketStatus as TicketStatus | undefined,
-      fromDate: fromDate ?? undefined,
-      toDate: toDate ?? undefined,
-    });
+    const total = includeTotal
+      ? await this.reportsRepository.count({
+          ticketId: query.ticketId,
+          createdById: query.createdById,
+          componentId: query.componentId,
+          ticketStatus: query.ticketStatus as TicketStatus | undefined,
+          fromDate: fromDate ?? undefined,
+          toDate: toDate ?? undefined,
+        })
+      : data.length;
 
     return {
       page,
