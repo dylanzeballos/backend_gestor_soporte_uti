@@ -158,8 +158,18 @@ export class TicketsService {
     dto: UpdateTicketStatusDto,
     changedById: number,
   ) {
-    await this.assertStaffAccess(changedById);
     const ticket = await this.findOne(id, changedById);
+    const actor = await this.getActorContext(changedById);
+    const isSelfCancellation =
+      actor.role === 'user' &&
+      ticket.createdById === actor.userId &&
+      dto.status === TicketStatus.cancelled;
+
+    if (!isSelfCancellation) {
+      await this.assertStaffAccess(changedById, actor);
+    } else {
+      this.assertSelfCancellationAllowed(ticket.status);
+    }
 
     const updated = await this.ticketsRepository.update(id, {
       status: dto.status as TicketStatus,
@@ -172,10 +182,12 @@ export class TicketsService {
       changedById,
       previousStatus: ticket.status,
       newStatus: dto.status as TicketStatus,
-      comment: dto.comment ?? null,
+      comment:
+        dto.comment ??
+        (isSelfCancellation ? 'Ticket cancelado por el solicitante' : null),
     });
 
-    if (updated.createdBy?.email) {
+    if (updated.createdBy?.email && updated.createdById !== changedById) {
       await this.emailService.send({
         to: updated.createdBy.email,
         subject: `Ticket #${id} actualizado a ${dto.status}`,
@@ -294,10 +306,25 @@ export class TicketsService {
     };
   }
 
-  private async assertStaffAccess(userId: number) {
-    const actor = await this.getActorContext(userId);
-    if (actor.role === 'user') {
+  private async assertStaffAccess(
+    userId: number,
+    actor?: Awaited<ReturnType<TicketsService['getActorContext']>>,
+  ) {
+    const effectiveActor = actor ?? (await this.getActorContext(userId));
+    if (effectiveActor.role === 'user') {
       throw new ForbiddenException('No tienes permisos para gestionar tickets');
+    }
+  }
+
+  private assertSelfCancellationAllowed(status: TicketStatus) {
+    if (
+      status === TicketStatus.resolved ||
+      status === TicketStatus.closed ||
+      status === TicketStatus.cancelled
+    ) {
+      throw new UnprocessableEntityException(
+        'Solo puedes cancelar tickets abiertos o en progreso',
+      );
     }
   }
 
