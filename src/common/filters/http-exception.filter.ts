@@ -16,14 +16,19 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
+    const prismaDatabaseUnavailable = this.isDatabaseUnavailableError(exception);
 
     const status =
-      exception instanceof HttpException
+      prismaDatabaseUnavailable
+        ? HttpStatus.SERVICE_UNAVAILABLE
+        : exception instanceof HttpException
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
     const exceptionResponse =
-      exception instanceof HttpException
+      prismaDatabaseUnavailable
+        ? 'No se pudo establecer conexion con la base de datos'
+        : exception instanceof HttpException
         ? exception.getResponse()
         : 'Internal server error';
 
@@ -40,6 +45,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
         logMessage,
         exception instanceof Error ? exception.stack : undefined,
       );
+    } else if (
+      status === HttpStatus.UNAUTHORIZED &&
+      request.method === 'GET' &&
+      request.url.includes('/auth/me')
+    ) {
+      this.logger.log(logMessage);
     } else if (status === HttpStatus.UNAUTHORIZED || status === HttpStatus.FORBIDDEN) {
       this.logger.warn(logMessage);
     } else {
@@ -52,5 +63,20 @@ export class HttpExceptionFilter implements ExceptionFilter {
       statusCode: status,
       message,
     });
+  }
+
+  private isDatabaseUnavailableError(exception: unknown) {
+    if (!(exception instanceof Error)) {
+      return false;
+    }
+
+    const name = exception.constructor?.name ?? '';
+    const message = exception.message ?? '';
+
+    return (
+      (name === 'PrismaClientKnownRequestError' ||
+        name === 'PrismaClientInitializationError') &&
+      message.includes("Can't reach database server")
+    );
   }
 }

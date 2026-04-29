@@ -132,6 +132,7 @@ export class NotificationsGateway
       ticketId,
       title,
       assignedBy,
+      assignedToId,
       assignedToName,
       assignedAt: new Date().toISOString(),
     });
