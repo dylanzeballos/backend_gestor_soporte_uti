@@ -20,7 +20,7 @@ export class TicketsRepository {
   }) {
     return this.prisma.ticket.create({
       data,
-      include: this.defaultInclude,
+      include: this.summaryInclude,
     });
   }
 
@@ -58,7 +58,7 @@ export class TicketsRepository {
 
     return this.prisma.ticket.findMany({
       where,
-      include: this.defaultInclude,
+      include: this.summaryInclude,
       skip: (params.page - 1) * params.limit,
       take: params.limit,
       orderBy: {
@@ -106,7 +106,7 @@ export class TicketsRepository {
         id,
         deletedAt: null,
       },
-      include: this.defaultInclude,
+      include: this.detailInclude,
     });
   }
 
@@ -127,7 +127,7 @@ export class TicketsRepository {
     return this.prisma.ticket.update({
       where: { id },
       data,
-      include: this.defaultInclude,
+      include: this.summaryInclude,
     });
   }
 
@@ -152,7 +152,7 @@ export class TicketsRepository {
     });
   }
 
-  private readonly defaultInclude = {
+  private readonly summaryInclude = {
     createdBy: {
       select: {
         id: true,
@@ -177,7 +177,23 @@ export class TicketsRepository {
         email: true,
       },
     },
-    service: true,
+    service: {
+      select: {
+        id: true,
+        name: true,
+      },
+    },
+    report: {
+      select: {
+        id: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    },
+  };
+
+  private readonly detailInclude = {
+    ...this.summaryInclude,
     history: {
       orderBy: {
         changedAt: 'desc' as const,
