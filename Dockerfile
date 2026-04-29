@@ -18,7 +18,7 @@ COPY . .
 ENV DATABASE_URL=${DATABASE_URL}
 
 # ✅ Generar cliente Prisma
-RUN npx prisma generate
+RUN npx prisma generate --no-engine
 
 RUN npm run build
 
