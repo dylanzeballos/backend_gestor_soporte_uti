@@ -91,6 +91,42 @@ export class ReportsService {
     return report;
   }
 
+  async findCustomerVisibleSummaryByTicketId(
+    ticketId: number,
+    currentUserId: number,
+  ) {
+    const report = await this.reportsRepository.findCustomerVisibleByTicketId(ticketId);
+    if (!report || report.ticket?.createdById !== currentUserId) {
+      throw new NotFoundException('Report not found');
+    }
+
+    return {
+      id: report.id,
+      ticketId: report.ticketId,
+      summary: report.summary,
+      workPerformed: report.workPerformed,
+      resolutionType: report.resolutionType,
+      startedAt: report.startedAt,
+      finishedAt: report.finishedAt,
+      createdAt: report.createdAt,
+      updatedAt: report.updatedAt,
+      technician: report.createdBy
+        ? {
+            id: report.createdBy.id,
+            name:
+              `${report.createdBy.firstName ?? ''} ${report.createdBy.lastName ?? ''}`.trim() ||
+              report.createdBy.email,
+          }
+        : null,
+      components: (report.components ?? []).map((component) => ({
+        id: component.id,
+        componentId: component.componentId,
+        quantity: component.quantity,
+        name: component.component?.name ?? `Componente #${component.componentId}`,
+      })),
+    };
+  }
+
   async update(id: number, updateTicketReportDto: UpdateTicketReportDto) {
     const currentReport = await this.reportsRepository.findById(id);
     if (!currentReport) {
@@ -168,36 +204,34 @@ export class ReportsService {
     const toDate = this.parseDate(query.toDate);
     this.assertDateRange(fromDate, toDate);
 
-    const totalReports = await this.reportsRepository.countSummary(
-      fromDate ?? undefined,
-      toDate ?? undefined,
-    );
+    const filters = {
+      fromDate: fromDate ?? undefined,
+      toDate: toDate ?? undefined,
+      corporationId: query.corporationId,
+    };
 
-    const ticketStatusGroups = await this.reportsRepository.groupByTicketStatus(
-      fromDate ?? undefined,
-      toDate ?? undefined,
-    );
-    const ticketIds = ticketStatusGroups.map((group) => group.ticketId);
-    const tickets = ticketIds.length
-      ? await this.reportsRepository.findTicketsByIds(ticketIds)
-      : [];
-    const ticketStatusById = new Map(tickets.map((ticket) => [ticket.id, ticket.status]));
+    const [
+      totalTickets,
+      totalReports,
+      statusGroups,
+      priorityGroups,
+      creatorGroups,
+      serviceGroups,
+      unitTickets,
+      resolvedTickets,
+      componentGroups,
+    ] = await Promise.all([
+      this.reportsRepository.countTicketsSummary(filters),
+      this.reportsRepository.countReportedTicketsSummary(filters),
+      this.reportsRepository.groupTicketsByStatus(filters),
+      this.reportsRepository.groupTicketsByPriority(filters),
+      this.reportsRepository.groupByCreator(filters),
+      this.reportsRepository.groupTicketsByService(filters),
+      this.reportsRepository.findTicketsForUnitSummary(filters),
+      this.reportsRepository.findResolvedTicketsForSummary(filters),
+      this.reportsRepository.groupComponentsForSummary(filters),
+    ]);
 
-    const byStatusMap = new Map<string, number>();
-    for (const group of ticketStatusGroups) {
-      const status = ticketStatusById.get(group.ticketId) ?? 'open';
-      byStatusMap.set(status, (byStatusMap.get(status) ?? 0) + group._count._all);
-    }
-
-    const byStatus = Array.from(byStatusMap.entries()).map(([status, count]) => ({
-      status,
-      count,
-    }));
-
-    const creatorGroups = await this.reportsRepository.groupByCreator(
-      fromDate ?? undefined,
-      toDate ?? undefined,
-    );
     const creatorIds = creatorGroups.map((group) => group.createdById);
     const creators = creatorIds.length
       ? await this.reportsRepository.findUsersByIds(creatorIds)
@@ -215,10 +249,6 @@ export class ReportsService {
       };
     });
 
-    const componentGroups = await this.reportsRepository.groupByComponent(
-      fromDate ?? undefined,
-      toDate ?? undefined,
-    );
     const componentIds = componentGroups.map((group) => group.componentId);
     const components = componentIds.length
       ? await this.reportsRepository.findComponentsByIds(componentIds)
@@ -235,9 +265,106 @@ export class ReportsService {
       };
     });
 
+    const statusCounts = {
+      open: 0,
+      in_progress: 0,
+      resolved: 0,
+      closed: 0,
+      cancelled: 0,
+    };
+
+    for (const group of statusGroups) {
+      statusCounts[group.status] = group._count._all;
+    }
+
+    const byStatus = Object.entries(statusCounts).map(([status, count]) => ({
+      status,
+      count,
+    }));
+
+    const byPriority = priorityGroups.map((group) => ({
+      priority: group.priority,
+      count: group._count._all,
+    }));
+
+    const serviceIds = serviceGroups
+      .map((group) => group.serviceId)
+      .filter((serviceId): serviceId is number => typeof serviceId === 'number');
+    const services = serviceIds.length
+      ? await this.reportsRepository.findServicesByIds(serviceIds)
+      : [];
+    const serviceById = new Map(services.map((service) => [service.id, service]));
+
+    const topServices = serviceGroups
+      .filter((group): group is typeof group & { serviceId: number } => typeof group.serviceId === 'number')
+      .map((group) => ({
+        serviceId: group.serviceId,
+        name: serviceById.get(group.serviceId)?.name ?? `Servicio #${group.serviceId}`,
+        count: group._count._all,
+      }));
+
+    const unitMap = new Map<
+      number | 'without-unit',
+      { corporationId: number | null; name: string; count: number }
+    >();
+
+    for (const ticket of unitTickets) {
+      const corporation = ticket.createdBy.corporation;
+      const key = corporation?.id ?? 'without-unit';
+      const current = unitMap.get(key);
+
+      if (current) {
+        current.count += 1;
+        continue;
+      }
+
+      unitMap.set(key, {
+        corporationId: corporation?.id ?? null,
+        name: corporation?.name ?? 'Sin unidad',
+        count: 1,
+      });
+    }
+
+    const byUnit = Array.from(unitMap.values()).sort((left, right) => right.count - left.count);
+
+    const averageResolutionHours =
+      resolvedTickets.length > 0
+        ? Number(
+            (
+              resolvedTickets.reduce((total, ticket) => {
+                if (!ticket.resolvedAt) {
+                  return total;
+                }
+
+                return (
+                  total +
+                  (ticket.resolvedAt.getTime() - ticket.createdAt.getTime()) / (1000 * 60 * 60)
+                );
+              }, 0) / resolvedTickets.length
+            ).toFixed(1),
+          )
+        : null;
+
     return {
-      totalReports,
+      filters: {
+        fromDate: fromDate?.toISOString() ?? null,
+        toDate: toDate?.toISOString() ?? null,
+        corporationId: query.corporationId ?? null,
+      },
+      totals: {
+        tickets: totalTickets,
+        reports: totalReports,
+        open: statusCounts.open,
+        inProgress: statusCounts.in_progress,
+        resolved: statusCounts.resolved,
+        closed: statusCounts.closed,
+        cancelled: statusCounts.cancelled,
+        averageResolutionHours,
+      },
       byStatus,
+      byPriority,
+      byUnit,
+      topServices,
       byTechnician,
       topComponents,
     };

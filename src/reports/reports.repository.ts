@@ -65,6 +65,58 @@ export class ReportsRepository {
     });
   }
 
+  findCustomerVisibleByTicketId(ticketId: number) {
+    return this.prisma.ticketReport.findFirst({
+      where: {
+        ticketId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        ticketId: true,
+        summary: true,
+        workPerformed: true,
+        resolutionType: true,
+        startedAt: true,
+        finishedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        createdBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        ticket: {
+          select: {
+            id: true,
+            createdById: true,
+            status: true,
+            updatedAt: true,
+          },
+        },
+        components: {
+          select: {
+            id: true,
+            componentId: true,
+            quantity: true,
+            component: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+          orderBy: {
+            id: 'asc',
+          },
+        },
+      },
+    });
+  }
+
   create(data: {
     ticketId: number;
     createdById: number;
@@ -249,6 +301,142 @@ export class ReportsRepository {
     });
   }
 
+  countTicketsSummary(params: {
+    fromDate?: Date;
+    toDate?: Date;
+    corporationId?: number;
+  }) {
+    return this.prisma.ticket.count({
+      where: this.buildTicketStatsWhere(params),
+    });
+  }
+
+  countReportedTicketsSummary(params: {
+    fromDate?: Date;
+    toDate?: Date;
+    corporationId?: number;
+  }) {
+    return this.prisma.ticketReport.count({
+      where: this.buildReportStatsWhere(params),
+    });
+  }
+
+  groupTicketsByStatus(params: {
+    fromDate?: Date;
+    toDate?: Date;
+    corporationId?: number;
+  }) {
+    return this.prisma.ticket.groupBy({
+      by: ['status'],
+      where: this.buildTicketStatsWhere(params),
+      _count: {
+        _all: true,
+      },
+      orderBy: {
+        status: 'asc',
+      },
+    });
+  }
+
+  groupTicketsByPriority(params: {
+    fromDate?: Date;
+    toDate?: Date;
+    corporationId?: number;
+  }) {
+    return this.prisma.ticket.groupBy({
+      by: ['priority'],
+      where: this.buildTicketStatsWhere(params),
+      _count: {
+        _all: true,
+      },
+      orderBy: {
+        priority: 'asc',
+      },
+    });
+  }
+
+  groupTicketsByService(params: {
+    fromDate?: Date;
+    toDate?: Date;
+    corporationId?: number;
+  }) {
+    return this.prisma.ticket.groupBy({
+      by: ['serviceId'],
+      where: {
+        ...this.buildTicketStatsWhere(params),
+        serviceId: {
+          not: null,
+        },
+      },
+      _count: {
+        _all: true,
+      },
+      orderBy: {
+        _count: {
+          serviceId: 'desc',
+        },
+      },
+      take: 8,
+    });
+  }
+
+  findServicesByIds(ids: number[]) {
+    return this.prisma.service.findMany({
+      where: {
+        id: {
+          in: ids,
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+  }
+
+  findTicketsForUnitSummary(params: {
+    fromDate?: Date;
+    toDate?: Date;
+    corporationId?: number;
+  }) {
+    return this.prisma.ticket.findMany({
+      where: this.buildTicketStatsWhere(params),
+      select: {
+        id: true,
+        createdBy: {
+          select: {
+            corporationId: true,
+            corporation: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  findResolvedTicketsForSummary(params: {
+    fromDate?: Date;
+    toDate?: Date;
+    corporationId?: number;
+  }) {
+    return this.prisma.ticket.findMany({
+      where: {
+        ...this.buildTicketStatsWhere(params),
+        resolvedAt: {
+          not: null,
+        },
+      },
+      select: {
+        createdAt: true,
+        resolvedAt: true,
+      },
+    });
+  }
+
   groupByTicketStatus(fromDate?: Date, toDate?: Date) {
     return this.prisma.ticketReport.groupBy({
       by: ['ticketId'],
@@ -283,20 +471,14 @@ export class ReportsRepository {
     });
   }
 
-  groupByCreator(fromDate?: Date, toDate?: Date) {
+  groupByCreator(params: {
+    fromDate?: Date;
+    toDate?: Date;
+    corporationId?: number;
+  }) {
     return this.prisma.ticketReport.groupBy({
       by: ['createdById'],
-      where: {
-        deletedAt: null,
-        ...(fromDate || toDate
-          ? {
-              createdAt: {
-                ...(fromDate ? { gte: fromDate } : {}),
-                ...(toDate ? { lte: toDate } : {}),
-              },
-            }
-          : {}),
-      },
+      where: this.buildReportStatsWhere(params),
       _count: {
         _all: true,
       },
@@ -350,6 +532,29 @@ export class ReportsRepository {
     });
   }
 
+  groupComponentsForSummary(params: {
+    fromDate?: Date;
+    toDate?: Date;
+    corporationId?: number;
+  }) {
+    return this.prisma.ticketReportComponent.groupBy({
+      by: ['componentId'],
+      where: this.buildReportComponentStatsWhere(params),
+      _count: {
+        _all: true,
+      },
+      _sum: {
+        quantity: true,
+      },
+      orderBy: {
+        _sum: {
+          quantity: 'desc',
+        },
+      },
+      take: 10,
+    });
+  }
+
   findComponentsByIds(ids: number[]) {
     return this.prisma.component.findMany({
       where: {
@@ -363,6 +568,68 @@ export class ReportsRepository {
         isActive: true,
       },
     });
+  }
+
+  private buildTicketStatsWhere(params: {
+    fromDate?: Date;
+    toDate?: Date;
+    corporationId?: number;
+  }) {
+    return {
+      deletedAt: null,
+      ...(params.fromDate || params.toDate
+        ? {
+            createdAt: {
+              ...(params.fromDate ? { gte: params.fromDate } : {}),
+              ...(params.toDate ? { lte: params.toDate } : {}),
+            },
+          }
+        : {}),
+      ...(params.corporationId
+        ? {
+            createdBy: {
+              corporationId: params.corporationId,
+            },
+          }
+        : {}),
+    };
+  }
+
+  private buildReportStatsWhere(params: {
+    fromDate?: Date;
+    toDate?: Date;
+    corporationId?: number;
+  }) {
+    return {
+      deletedAt: null,
+      ...(params.fromDate || params.toDate
+        ? {
+            createdAt: {
+              ...(params.fromDate ? { gte: params.fromDate } : {}),
+              ...(params.toDate ? { lte: params.toDate } : {}),
+            },
+          }
+        : {}),
+      ...(params.corporationId
+        ? {
+            ticket: {
+              createdBy: {
+                corporationId: params.corporationId,
+              },
+            },
+          }
+        : {}),
+    };
+  }
+
+  private buildReportComponentStatsWhere(params: {
+    fromDate?: Date;
+    toDate?: Date;
+    corporationId?: number;
+  }) {
+    return {
+      ticketReport: this.buildReportStatsWhere(params),
+    };
   }
 
   private readonly summaryInclude = {

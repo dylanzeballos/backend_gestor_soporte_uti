@@ -69,12 +69,25 @@ export class ReportsController {
     return this.reportsService.findAll(query);
   }
 
+  @Get('ticket/:ticketId/customer-summary')
+  @ApiOperation({ summary: 'Get limited report summary for the ticket requester' })
+  findCustomerSummary(
+    @Param('ticketId', ParseIntPipe) ticketId: number,
+    @CurrentUser('sub') currentUserId: number,
+  ) {
+    return this.reportsService.findCustomerVisibleSummaryByTicketId(
+      ticketId,
+      currentUserId,
+    );
+  }
+
   @Get('stats/summary')
   @Roles('admin', 'agent', 'tecnico')
   @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'Get report summary stats (admin/agent/tecnico)' })
   @ApiQuery({ name: 'fromDate', required: false, type: String })
   @ApiQuery({ name: 'toDate', required: false, type: String })
+  @ApiQuery({ name: 'corporationId', required: false, type: Number })
   getSummaryStats(@Query() query: ReportStatsQueryDto) {
     return this.reportsService.getSummaryStats(query);
   }
