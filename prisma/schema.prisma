@@ -74,6 +74,7 @@ model User {
   ticketsAssigned Ticket[]       @relation("ticket_assignedTo")
   ticketsEmitted   Ticket[]      @relation("ticket_emitter")
   historyChanges   TicketHistory[] @relation("history_changedBy")
+  createdReports   TicketReport[]  @relation("report_createdBy")
 
   userGroups       UserGroup[]
   userPermissions  UserPermission[]
@@ -116,12 +117,68 @@ model Ticket {
   emitter        User?          @relation("ticket_emitter", fields: [emitterId], references: [id])
   service        Service?       @relation(fields: [serviceId], references: [id])
   history        TicketHistory[] @relation("ticket_history")
+  report         TicketReport?  @relation("ticket_report")
 
   @@map("tickets")
   @@index([status], map: "idx_tickets_status")
   @@index([priority], map: "idx_tickets_priority")
   @@index([assignedToId], map: "idx_tickets_assigned_to")
   @@index([serviceId], map: "idx_tickets_service_id")
+}
+
+model Component {
+  id          Int      @id @default(autoincrement()) @map("id")
+  name        String   @unique @map("name")
+  description String?  @map("description")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  reportItems TicketReportComponent[] @relation("component_report_items")
+
+  @@map("components")
+  @@index([isActive], map: "idx_components_is_active")
+  @@index([createdAt], map: "idx_components_created_at")
+}
+
+model TicketReport {
+  id             Int       @id @default(autoincrement()) @map("id")
+  ticketId       Int       @unique @map("ticket_id")
+  createdById    Int       @map("created_by_id")
+  summary        String    @map("summary")
+  workPerformed  String    @map("work_performed")
+  resolutionType String?   @map("resolution_type")
+  startedAt      DateTime? @map("started_at")
+  finishedAt     DateTime? @map("finished_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  ticket         Ticket    @relation("ticket_report", fields: [ticketId], references: [id])
+  createdBy      User      @relation("report_createdBy", fields: [createdById], references: [id])
+  components     TicketReportComponent[] @relation("ticket_report_items")
+
+  @@map("ticket_reports")
+  @@index([createdById], map: "idx_ticket_reports_created_by")
+  @@index([createdAt], map: "idx_ticket_reports_created_at")
+}
+
+model TicketReportComponent {
+  id             Int      @id @default(autoincrement()) @map("id")
+  ticketReportId Int      @map("ticket_report_id")
+  componentId    Int      @map("component_id")
+  quantity       Int      @default(1) @map("quantity")
+  note           String?  @map("note")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+
+  ticketReport   TicketReport @relation("ticket_report_items", fields: [ticketReportId], references: [id])
+  component      Component    @relation("component_report_items", fields: [componentId], references: [id])
+
+  @@map("ticket_report_components")
+  @@unique([ticketReportId, componentId], map: "uq_ticket_report_component")
+  @@index([componentId], map: "idx_ticket_report_components_component_id")
 }
 
 model TicketHistory {
