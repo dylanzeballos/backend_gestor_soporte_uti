@@ -5,12 +5,10 @@ services:
       dockerfile: Dockerfile
     container_name: backend_gestor_soporte_uti
     restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "7001:7001"
-    environment:
-      NODE_ENV: production
-      PORT: 7001
-      DATABASE_URL: "postgresql://uti.fce:071.f03@dbpg:5432/ticketuti?schema=public"
     networks:
       - dbpg_dbpg
 
