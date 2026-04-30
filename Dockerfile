@@ -37,24 +37,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV NODE_ENV=production
 ENV PORT=7001
 
-COPY package.json ./
-RUN npm install --omit=dev --legacy-peer-deps
+# Copiar node_modules COMPLETO del builder
+# (prisma, tsx y otros devDeps son necesarios en runtime para migrate y seed)
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
 
 # Build compilado
 COPY --from=builder /app/dist ./dist
 
-# Cliente generado por Prisma (va a src/generated/prisma según schema)
+# Cliente generado por Prisma (src/generated/prisma según schema)
 COPY --from=builder /app/src/generated ./src/generated
 
-# Schema y migraciones (necesarios para migrate deploy y seed)
+# Schema, migraciones y seed
 COPY --from=builder /app/prisma ./prisma
-
-# Config de Prisma y seed
-COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 
 EXPOSE 7001
 
-# 1) Corre migraciones
-# 2) Corre seed (upsert → idempotente, seguro correrlo siempre)
-# 3) Arranca la app
-CMD ["sh", "-c", "npx prisma migrate deploy && npx tsx prisma/seed.ts && node dist/main.js"]
+# 1) Migraciones  2) Seed (upsert = idempotente)  3) App
+CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy --schema=prisma/schema.prisma && node_modules/.bin/tsx prisma/seed.ts && node dist/main.js"]
