@@ -10,10 +10,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
-RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
-
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile
+# pnpm-workspace.yaml no tiene "packages" (no es monorepo), usamos npm
+RUN npm install --legacy-peer-deps
 
 COPY . .
 
@@ -21,7 +20,7 @@ COPY . .
 # → evita que prisma.config.ts pida DATABASE_URL en build time
 RUN npx prisma generate --schema=./prisma/schema.prisma
 
-RUN pnpm run build
+RUN npm run build
 
 # ─────────────────────────────────────────────
 # Stage 2 – Runner
@@ -35,13 +34,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
-RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
-
 ENV NODE_ENV=production
 ENV PORT=7001
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile --prod
+COPY package.json ./
+RUN npm install --omit=dev --legacy-peer-deps
 
 # Build compilado
 COPY --from=builder /app/dist ./dist
