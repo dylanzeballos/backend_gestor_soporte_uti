@@ -1,5 +1,5 @@
 services:
-  backend_gestor_soporte_uti:
+  bk_sup_uti:
     build:
       context: .
       dockerfile: Dockerfile
