@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: backend_gestor_soporte_uti
+    container_name: bk_sup_uti
     restart: unless-stopped
     env_file:
       - .env
