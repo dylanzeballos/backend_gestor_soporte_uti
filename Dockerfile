@@ -11,13 +11,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-# pnpm-workspace.yaml no tiene "packages" (no es monorepo), usamos npm
 RUN npm install --legacy-peer-deps
 
 COPY . .
 
 # Genera el cliente Prisma apuntando directo al schema
-# → evita que prisma.config.ts pida DATABASE_URL en build time
+# → no necesita DATABASE_URL en build time
 RUN npx prisma generate --schema=./prisma/schema.prisma
 
 RUN npm run build
@@ -37,21 +36,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV NODE_ENV=production
 ENV PORT=7001
 
-# Copiar node_modules COMPLETO del builder
-# (prisma, tsx y otros devDeps son necesarios en runtime para migrate y seed)
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 
 # Build compilado
 COPY --from=builder /app/dist ./dist
 
-# Cliente generado por Prisma (src/generated/prisma según schema)
+# Cliente generado por Prisma
 COPY --from=builder /app/src/generated ./src/generated
 
 # Schema, migraciones y seed
 COPY --from=builder /app/prisma ./prisma
 
+# Config de Prisma (necesario para migrate deploy en runtime)
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+
 EXPOSE 7001
 
-# 1) Migraciones  2) Seed (upsert = idempotente)  3) App
-CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy --schema=prisma/schema.prisma && node_modules/.bin/tsx prisma/seed.ts && node dist/main.js"]
+# DATABASE_URL viene del env_file (.env) inyectado por docker compose
+CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node_modules/.bin/tsx prisma/seed.ts && node dist/main.js"]

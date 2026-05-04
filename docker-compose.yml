@@ -7,6 +7,9 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      NODE_ENV: production
+      PORT: "7001"
     ports:
       - "7001:7001"
     networks:
