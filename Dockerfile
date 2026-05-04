@@ -59,4 +59,4 @@ COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 EXPOSE 7001
 
 # tsconfig sin rootDir → nest compila src/main.ts a dist/src/main.js
-CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node_modules/.bin/tsx prisma/seed.ts && node dist/src/main.js"]
+CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node_modules/.bin/tsx prisma/seed.ts && node dist/main.js"]
