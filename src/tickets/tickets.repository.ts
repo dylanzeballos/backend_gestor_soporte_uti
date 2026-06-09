@@ -183,13 +183,6 @@ export class TicketsRepository {
         name: true,
       },
     },
-    report: {
-      select: {
-        id: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    },
   };
 
   private readonly detailInclude = {
