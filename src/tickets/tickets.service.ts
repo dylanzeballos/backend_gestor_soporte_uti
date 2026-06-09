@@ -1,6 +1,7 @@
 import {
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -19,6 +20,8 @@ import { TicketsRepository } from './tickets.repository';
 
 @Injectable()
 export class TicketsService {
+  private readonly logger = new Logger(TicketsService.name);
+
   constructor(
     private readonly ticketsRepository: TicketsRepository,
     private readonly filesService: FilesService,
@@ -28,84 +31,93 @@ export class TicketsService {
   ) {}
 
   async create(createTicketDto: CreateTicketDto, currentUserId: number) {
-    const createdTicket = await this.ticketsRepository.create({
-      title: createTicketDto.title,
-      description: createTicketDto.description,
-      priority: createTicketDto.priority as TicketPriority | undefined,
-      status: createTicketDto.status as TicketStatus | undefined,
-      createdById: currentUserId,
-      assignedToId: createTicketDto.assignedToId ?? null,
-      emitterId: createTicketDto.emitterId ?? null,
-      serviceId: createTicketDto.serviceId ?? null,
-      slaMinutes: createTicketDto.slaMinutes ?? null,
-    });
-
-    await this.ticketsRepository.createHistory({
-      ticketId: createdTicket.id,
-      changedById: currentUserId,
-      previousStatus: null,
-      newStatus: createdTicket.status,
-      comment: 'Ticket created',
-    });
-
-    if (createdTicket.assignedTo?.email) {
-      await this.emailService.send({
-        to: createdTicket.assignedTo.email,
-        subject: `Nuevo ticket asignado #${createdTicket.id}`,
-        text: `Se te asignó el ticket ${createdTicket.title}`,
+    try {
+      const createdTicket = await this.ticketsRepository.create({
+        title: createTicketDto.title,
+        description: createTicketDto.description,
+        priority: createTicketDto.priority as TicketPriority | undefined,
+        status: createTicketDto.status as TicketStatus | undefined,
+        createdById: currentUserId,
+        assignedToId: createTicketDto.assignedToId ?? null,
+        emitterId: createTicketDto.emitterId ?? null,
+        serviceId: createTicketDto.serviceId ?? null,
+        slaMinutes: createTicketDto.slaMinutes ?? null,
       });
+
+      await this.ticketsRepository.createHistory({
+        ticketId: createdTicket.id,
+        changedById: currentUserId,
+        previousStatus: null,
+        newStatus: createdTicket.status,
+        comment: 'Ticket created',
+      });
+
+      if (createdTicket.assignedTo?.email) {
+        await this.emailService.send({
+          to: createdTicket.assignedTo.email,
+          subject: `Nuevo ticket asignado #${createdTicket.id}`,
+          text: `Se te asignó el ticket ${createdTicket.title}`,
+        });
+      }
+
+      this.notificationsGateway.emitTicketCreated(
+        createdTicket.id,
+        createdTicket.title,
+        createdTicket.priority,
+        currentUserId,
+      );
+
+      return createdTicket;
+    } catch (error) {
+      this.logger.error(`[create] Error creating ticket: ${(error as Error).message}`, (error as Error).stack);
+      throw error;
     }
-
-    // WebSocket notification to admins and staff
-    this.notificationsGateway.emitTicketCreated(
-      createdTicket.id,
-      createdTicket.title,
-      createdTicket.priority,
-      currentUserId,
-    );
-
-    return createdTicket;
   }
 
   async findAll(query: ListTicketsQueryDto, currentUserId: number) {
-    const actor = await this.getActorContext(currentUserId);
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
-    const includeTotal = query.includeTotal !== false;
-    const createdById = actor.role === 'user' ? actor.userId : query.createdById;
-    const excludeCreatedById =
-      actor.role === 'user' || createdById ? undefined : query.excludeCreatedById;
+    try {
+      const actor = await this.getActorContext(currentUserId);
+      const page = query.page ?? 1;
+      const limit = query.limit ?? 20;
+      const includeTotal = query.includeTotal !== false;
+      const createdById = actor.role === 'user' ? actor.userId : query.createdById;
+      const excludeCreatedById =
+        actor.role === 'user' || createdById ? undefined : query.excludeCreatedById;
 
-    const data = await this.ticketsRepository.findAll({
-      page,
-      limit,
-      status: query.status as TicketStatus | undefined,
-      priority: query.priority as TicketPriority | undefined,
-      assignedToId: query.assignedToId,
-      unassigned: query.unassigned,
-      createdById,
-      excludeCreatedById,
-      search: query.search,
-    });
+      const data = await this.ticketsRepository.findAll({
+        page,
+        limit,
+        status: query.status as TicketStatus | undefined,
+        priority: query.priority as TicketPriority | undefined,
+        assignedToId: query.assignedToId,
+        unassigned: query.unassigned,
+        createdById,
+        excludeCreatedById,
+        search: query.search,
+      });
 
-    const total = includeTotal
-      ? await this.ticketsRepository.count({
-          status: query.status as TicketStatus | undefined,
-          priority: query.priority as TicketPriority | undefined,
-          assignedToId: query.assignedToId,
-          unassigned: query.unassigned,
-          createdById,
-          excludeCreatedById,
-          search: query.search,
-        })
-      : data.length;
+      const total = includeTotal
+        ? await this.ticketsRepository.count({
+            status: query.status as TicketStatus | undefined,
+            priority: query.priority as TicketPriority | undefined,
+            assignedToId: query.assignedToId,
+            unassigned: query.unassigned,
+            createdById,
+            excludeCreatedById,
+            search: query.search,
+          })
+        : data.length;
 
-    return {
-      page,
-      limit,
-      total,
-      data,
-    };
+      return {
+        page,
+        limit,
+        total,
+        data,
+      };
+    } catch (error) {
+      this.logger.error(`[findAll] Error listing tickets: ${(error as Error).message}`, (error as Error).stack);
+      throw error;
+    }
   }
 
   async findOne(id: number, currentUserId: number) {
