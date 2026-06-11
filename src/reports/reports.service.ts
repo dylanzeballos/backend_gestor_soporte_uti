@@ -12,7 +12,9 @@ export class ReportsService {
   constructor(private readonly reportsRepository: ReportsRepository) {}
 
   async create(createTicketReportDto: CreateTicketReportDto, currentUserId: number) {
-    const componentPayload = this.normalizeComponents(createTicketReportDto.components);
+    const componentPayload = createTicketReportDto.components?.length
+      ? this.normalizeComponents(createTicketReportDto.components)
+      : [];
 
     const ticket = await this.reportsRepository.findTicketById(createTicketReportDto.ticketId);
     if (!ticket) {
@@ -26,7 +28,9 @@ export class ReportsService {
       throw new ConflictException('Ticket already has a report');
     }
 
-    await this.assertComponentsExist(componentPayload.map((component) => component.componentId));
+    if (componentPayload.length > 0) {
+      await this.assertComponentsExist(componentPayload.map((component) => component.componentId));
+    }
 
     const startedAt = this.parseDate(createTicketReportDto.startedAt);
     const finishedAt = this.parseDate(createTicketReportDto.finishedAt);

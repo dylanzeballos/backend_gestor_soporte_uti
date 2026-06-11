@@ -1,7 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
-  ArrayMinSize,
   IsArray,
   IsDateString,
   IsInt,
@@ -49,10 +48,10 @@ export class CreateTicketReportDto {
   @IsDateString()
   finishedAt?: string;
 
-  @ApiProperty({ type: [CreateReportComponentItemDto] })
+  @ApiPropertyOptional({ type: [CreateReportComponentItemDto] })
+  @IsOptional()
   @IsArray()
-  @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => CreateReportComponentItemDto)
-  components!: CreateReportComponentItemDto[];
+  components?: CreateReportComponentItemDto[];
 }
