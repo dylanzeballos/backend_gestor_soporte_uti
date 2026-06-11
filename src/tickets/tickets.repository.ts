@@ -162,7 +162,9 @@ export class TicketsRepository {
         where: {
           deletedAt: null,
           status: 'open' as TicketStatus,
-          ...(isStaff ? {} : { createdById: currentUserId }),
+          ...(isStaff
+            ? {}
+            : { createdById: currentUserId, assignedToId: null }),
         },
       }),
     ]);
