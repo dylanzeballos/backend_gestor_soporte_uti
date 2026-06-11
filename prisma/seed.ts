@@ -12,7 +12,7 @@ async function main() {
 
   const adminRole = await prisma.role.upsert({
     where: { name: 'admin' },
-    update: {},
+    update: { description: 'Administrator' },
     create: {
       name: 'admin',
       description: 'Administrator',
@@ -30,7 +30,7 @@ async function main() {
 
   await prisma.user.upsert({
     where: { email: 'uti@umss.edu' },
-    update: {},
+    update: { password: hashedPassword },
     create: {
       ci: '0000000',
       firstName: 'Admin',
@@ -41,6 +41,28 @@ async function main() {
       corporationId: corporation.id,
     },
   });
+
+  const defaultServices = [
+    'Soporte de hardware',
+    'Soporte de software',
+    'Red y conectividad',
+    'Correo institucional',
+    'Sistema academico',
+    'Portal web',
+    'Acceso y permisos',
+    'Telefonia IP',
+    'Aulas virtuales',
+    'Impresion y reproduccion',
+  ];
+
+  for (const name of defaultServices) {
+    await prisma.service.upsert({
+      where: { name },
+      update: { isActive: true },
+      create: { name, isActive: true },
+    });
+  }
+  console.log(`✅ Seeded ${defaultServices.length} default services`);
 
   console.log('✅ Seed completed: uti@umss.edu / admin123');
 }

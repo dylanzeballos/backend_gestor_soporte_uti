@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsBoolean, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class ListServicesQueryDto {
   @ApiPropertyOptional({ default: 1 })
@@ -19,9 +19,12 @@ export class ListServicesQueryDto {
   limit?: number = 20;
 
   @ApiPropertyOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return undefined;
+  })
   @IsOptional()
-  @IsBoolean()
   isActive?: boolean;
 
   @ApiPropertyOptional({ description: 'Search by service name' })
