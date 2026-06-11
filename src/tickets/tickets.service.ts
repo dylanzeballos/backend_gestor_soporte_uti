@@ -257,6 +257,11 @@ export class TicketsService {
     };
   }
 
+  async getCounts(currentUserId: number) {
+    const actor = await this.getActorContext(currentUserId);
+    return this.ticketsRepository.getCounts(currentUserId, actor.role as 'admin' | 'agent' | 'user');
+  }
+
   async registerAttachment(
     ticketId: number,
     file: Express.Multer.File | undefined,

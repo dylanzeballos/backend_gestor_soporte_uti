@@ -140,6 +140,36 @@ export class TicketsRepository {
     });
   }
 
+  async getCounts(currentUserId: number, userRole: 'admin' | 'agent' | 'user') {
+    const isStaff = userRole === 'admin' || userRole === 'agent';
+
+    const [unassigned, myAssignments, openTickets] = await Promise.all([
+      this.prisma.ticket.count({
+        where: {
+          deletedAt: null,
+          assignedToId: null,
+          status: 'open' as TicketStatus,
+        },
+      }),
+      this.prisma.ticket.count({
+        where: {
+          deletedAt: null,
+          assignedToId: currentUserId,
+          status: { in: ['open' as const, 'in_progress' as const] },
+        },
+      }),
+      this.prisma.ticket.count({
+        where: {
+          deletedAt: null,
+          status: 'open' as TicketStatus,
+          ...(isStaff ? {} : { createdById: currentUserId }),
+        },
+      }),
+    ]);
+
+    return { unassigned, myAssignments, openTickets };
+  }
+
   createHistory(data: {
     ticketId: number;
     changedById?: number | null;

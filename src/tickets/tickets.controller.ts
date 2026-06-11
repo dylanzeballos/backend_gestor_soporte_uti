@@ -69,6 +69,12 @@ export class TicketsController {
     return this.ticketsService.findAll(query, currentUserId);
   }
 
+  @Get('stats/counts')
+  @ApiOperation({ summary: 'Get sidebar badge counts' })
+  getCounts(@CurrentUser('sub') currentUserId: number) {
+    return this.ticketsService.getCounts(currentUserId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get ticket by id' })
   findOne(
