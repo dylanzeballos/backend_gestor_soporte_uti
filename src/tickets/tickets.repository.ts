@@ -215,6 +215,11 @@ export class TicketsRepository {
         name: true,
       },
     },
+    report: {
+      select: {
+        id: true,
+      },
+    },
   };
 
   private readonly detailInclude = {
