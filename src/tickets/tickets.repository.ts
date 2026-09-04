@@ -45,7 +45,9 @@ export class TicketsRepository {
           ? { assignedToId: params.assignedToId }
           : {}),
       ...(params.createdById ? { createdById: params.createdById } : {}),
-      ...(params.excludeCreatedById ? { createdById: { not: params.excludeCreatedById } } : {}),
+      ...(params.excludeCreatedById
+        ? { createdById: { not: params.excludeCreatedById } }
+        : {}),
       ...(params.search
         ? {
             title: {
@@ -87,7 +89,9 @@ export class TicketsRepository {
             ? { assignedToId: params.assignedToId }
             : {}),
         ...(params.createdById ? { createdById: params.createdById } : {}),
-        ...(params.excludeCreatedById ? { createdById: { not: params.excludeCreatedById } } : {}),
+        ...(params.excludeCreatedById
+          ? { createdById: { not: params.excludeCreatedById } }
+          : {}),
         ...(params.search
           ? {
               title: {
@@ -207,6 +211,12 @@ export class TicketsRepository {
         firstName: true,
         lastName: true,
         email: true,
+        corporation: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     },
     service: {
